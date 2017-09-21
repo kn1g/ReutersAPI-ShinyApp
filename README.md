@@ -15,7 +15,7 @@ Just because Excel sucks. This App provides a userinterface to query data from R
      devtools::install_github("fcocquemas/RDataStream")
      ```
      
-If you have R you can copy paste the packges. In RStudio yust press the RUN APP button. In R type shiny::runApp()
+If you have R you can copy paste the packges. In RStudio just press the RUN APP button. In R type shiny::runApp()
 
 ## How to
 
