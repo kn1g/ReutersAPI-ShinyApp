@@ -26,9 +26,12 @@ If you have R you can copy paste the packges. In RStudio just press the RUN APP 
 * Enter the data range and Periodicity
 * Specify the blocksize (it determines how many assets will be requested at once. I actually do not really know if it improves the speed. It should...)
 * Tick the "resume" checkbox if you had a query before that crashed or lost the connection. 
+* Press query data and wait. All files will be saved in the "Assets/" folder
+* Check the error log in "log/"
 
 ## Just saying...
 
+* Use it locally. At the moment it saves all files in the "Assets/" folder
 * The app has only limited error handling. 
 * The app is taylored to my specific needs. Extensions/Contributions appreciated. 
 
