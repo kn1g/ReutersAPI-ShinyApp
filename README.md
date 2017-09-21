@@ -6,13 +6,15 @@ Just because Excel sucks. This App provides a userinterface to query data from R
 * R
 * RStudio (recommended)
 * The following packages:
-
-    install.packages("shiny")
-    install.packages("XML")
-    install.packages("RCurl")
-    install.packages("devtools")
-    devtools::install_github("fcocquemas/RDataStream")
-    
+     
+     ```
+     install.packages("shiny")
+     install.packages("XML")
+     install.packages("RCurl")
+     install.packages("devtools")
+     devtools::install_github("fcocquemas/RDataStream")
+     ```
+     
 If you have R you can copy paste the packges. In RStudio yust press the RUN APP button. In R type shiny::runApp()
 
 ## How to
