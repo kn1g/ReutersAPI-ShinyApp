@@ -25,7 +25,6 @@ shinyServer(function(input, output) {
       
       ## Set user credentials
       user <- list(username = input$username, password = input$password)
-      print(user)
       
       ## Settings
       SETTINGS <- list()
