@@ -56,7 +56,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       # log error 
       saveError(3, # Error Code 3 : Could not match assetID and ISIN
                 ownError.msg = paste("I could not match any ISIN to the identifier:", AssetID[i]),
-                AssetID.arg  = AssetID) 
+                AssetID.arg  = AssetID[i]) 
       
     }else{
       # replace asset ID with ISIN if it could be matched. To query with ISIN instead of ID if possible
