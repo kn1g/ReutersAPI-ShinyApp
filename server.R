@@ -20,12 +20,11 @@ shinyServer(function(input, output) {
       print(e)
       print("Error: Something went wrong with the CSV File Uplaod")
     })
-    if(!is.null(inFile)){
+    if(!is.null(inFile)  && !is.null(CSVFile$Symbol) ){
       print("Identifier successfully loaded")
       
       ## Set user credentials
       user <- list(username = input$username, password = input$password)
-      print(user)
       
       ## Settings
       SETTINGS <- list()
@@ -100,7 +99,7 @@ shinyServer(function(input, output) {
       
       print("Done.")
     }else{
-      print("CSV upload failed. Please try again.")
+      print("CSV upload failed. Check format. It needs to be seperated by a ; and at least have a column named <Symbol>. Maybe you just forgot to load a file. Please try again.")
     }
     
     })

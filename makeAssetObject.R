@@ -75,7 +75,6 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
                               AssetType   = staticReq[["Data",i]]$TYPE,
                               TSData      = list() # define an empty list to store the TS request
     )
-    print(AssetObjects)
     
   }
     ## end defining an AssetObject from static query
