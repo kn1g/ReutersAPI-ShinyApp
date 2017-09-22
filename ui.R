@@ -33,7 +33,7 @@ shinyUI(fluidPage(
       numericInput("blocksize","How many Asset do you want to query in one query? (More Assets more risk something crashes) but faster",value=10),
       checkboxInput("resumeQuery", "Do you want to resume a query?"),
       actionButton("req_btn","Query data"),
-      uiOutput("downloadAssetObjects")
+      # uiOutput("downloadAssetObjects")
     ),
 
     # Show a plot of the generated distribution

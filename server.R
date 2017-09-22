@@ -87,15 +87,15 @@ shinyServer(function(input, output) {
       })
       
       # If done offer the filte to download
-      output$downloadAssetObjects <- renderUI({
-        downloadButton('downloadAssetObjects_Btn', 'Download the Data')
-      })
-      output$downloadAssetObjects_Btn <- downloadHandler(
-        filename = "AssetObjects.RData",
-        content = function(file) {
-          save(AssetObjects, file=file)
-        }
-      )
+      #output$downloadAssetObjects <- renderUI({
+      #  downloadButton('downloadAssetObjects_Btn', 'Download the Data')
+      #})
+      #output$downloadAssetObjects_Btn <- downloadHandler(
+      #  filename = "AssetObjects.RData",
+      #  content = function(file) {
+      #    save(AssetObjects, file=file)
+      #  }
+      #)
       
       print("Done.")
     }else{
