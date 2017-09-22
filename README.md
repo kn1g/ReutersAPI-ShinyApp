@@ -3,9 +3,9 @@ Just because Excel sucks. This App provides a userinterface to query data from R
 
 ## You need
 * An Reuters Datastream Account (costs money)
-* R
-* RStudio (recommended)
-* The following packages:
+* R (free)
+* RStudio (recommended, free)
+* The following packages (free):
      
      ```
      install.packages("shiny")
