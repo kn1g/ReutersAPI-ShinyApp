@@ -15,7 +15,3 @@ library(RDatastream)
 ## OR (https://github.com/CharlesCara/DatastreamDSWS2R)
 #library("DatastreamDSWS2R")
 
-# source functions
-source("makeAssetObject.R")
-source("saveError.R")
-source("saveAssets.R")
