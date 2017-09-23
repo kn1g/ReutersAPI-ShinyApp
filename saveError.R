@@ -9,9 +9,9 @@ saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID
   logFile = paste("log/","error_log.csv",sep="")
   if(!file.exists(logFile)){
     cat(paste(Sys.time(),
-              "0",
-              "Log File created",
-              "thridPartyError",
+              "Error_ID",
+              "Error_Msg",
+              "Error_3rdParty",
               "AssetID",
               "ISIN",
               sep=","), 
@@ -21,10 +21,10 @@ saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID
   # write into error logfile
   cat(paste(Sys.time(),
             ERRORCODE,
-            ownError.msg,
-            thridPartyError.msg,
-            AssetID,
-            ISIN,
+            '"',gsub("\"",ownError.msg),'"',
+            '"',gsub("\"",thridPartyError.msg),'"',
+            '"',AssetID,'"',
+            '"',ISIN,'"',
             sep=","), 
       file=logFile, append=TRUE, sep = "\n")
   
