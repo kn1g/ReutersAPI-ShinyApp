@@ -8,7 +8,7 @@ saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID
     
   logFile = paste("log/","error_log.csv",sep="")
   if(!file.exists(logFile)){
-    cat(paste(Sys.time(),
+    cat(paste("TimeStamp",
               "Error_ID",
               "Error_Msg",
               "Error_3rdParty",
