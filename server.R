@@ -197,7 +197,7 @@ shinyServer(function(input, output) {
 
     output$downloadAssetObjects_Btn <- downloadHandler(
       filename = function() {
-        paste("test", ".csv", sep = "")
+        paste("updated_",input$IdentifierList$name, sep = "")
       },
       content = function(file) {
         write.csv(CSVFile, file, row.names = FALSE)
