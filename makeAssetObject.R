@@ -63,14 +63,14 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       AssetID[i] <- as.character(staticReq[["Data",i]]$ISIN)
 
     }
-    AssetObjects[[i]] <- list(ISIN        = staticReq[["Data",i]]$ISIN,
-                              AssetID     = AssetID[i],
-                              AssetID2    = staticReq[["Data",i]]$SYMBOL, # can be removed. Just for debuggin purpose
-                              DSCode      = staticReq[["Data",i]]$DSCD,
-                              CName       = staticReq[["Data",i]]$NAME,
+    AssetObjects[[i]] <- list(ISIN        = as.character( staticReq[["Data",i]]$ISIN ),
+                              AssetID     = as.character( AssetID[i] ),
+                              AssetID2    = as.character( staticReq[["Data",i]]$SYMBOL ), # can be removed. Just for debuggin purpose
+                              DSCode      = as.character( staticReq[["Data",i]]$DSCD ),
+                              CName       = as.character( staticReq[["Data",i]]$NAME ),
                               CountryCode = substr(staticReq[["Data",i]]$ISIN,1,2), # get the first two ISIN char
                               Currency    = staticReq[["Data",i]]$CCY,
-                              Sector      = staticReq[["Data",i]]$INDM,
+                              Sector      = as.character( staticReq[["Data",i]]$INDM ),
                               Exchange    = staticReq[["Data",i]]$EXMNEM,
                               AssetType   = staticReq[["Data",i]]$TYPE,
                               TSData      = list() # define an empty list to store the TS request
