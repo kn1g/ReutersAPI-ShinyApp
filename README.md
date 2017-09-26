@@ -1,23 +1,40 @@
-# Rdatadownloader
-Diese kleine App ermölicht es über die Datastream API Daten herunterzuladen. 
+# Shiny APP to query Reuters API (DS only at the moment)
+Just because Excel sucks. This App provides a userinterface to query data from Reuters DS. 
 
-## Benötigte Pakete
-Die folgenden Pakete müssen für die App installiert sein:
+## You need
+* An Reuters Datastream Account (costs money)
+* R (free)
+* RStudio (recommended, free)
+* The following packages (free):
+     
+     ```
+     install.packages("shiny")
+     install.packages("XML")
+     install.packages("RCurl")
+     install.packages("devtools")
+     devtools::install_github("fcocquemas/RDataStream")
+     ```
+     
+If you have R you can copy paste the packges. In RStudio just press the RUN APP button. In R type shiny::runApp()
 
-    install.packages("shiny")
-    install.packages("XML")
-    install.packages("RCurl")
-    install.packages("devtools")
-    devtools::install_github("fcocquemas/RDataStream")
-    
-Die Anweisungen können per copy/paste übernommen werden.
+## How to
 
-## Anmerkungen
-Die folgenden Punkte sind zu beachten:
+* Get your DS Account login credentials and enter them into the form
+* Get a list with all assets you want to query. It needs to be a .csv (";" spererated) with at least a column named "Symbol" (Start.Date column would also be fine but not required)
+* Tick the "header" checkbox if you .csv file has a header row
+* Enter the fields you want to query
+* Enter the data range and Periodicity
+* Specify the blocksize (it determines how many assets will be requested at once. I actually do not really know if it improves the speed. It should...)
+* Tick the "resume" checkbox if you had a query before that crashed or lost the connection. 
+* Press query data and wait. All files will be saved in the "Assets/" folder
+* Check the error log in "log/"
 
-* Die App hat bisher kein Error handling. Es ist auch keins geplant. Grund: Kostet mich Zeit. Wer Lust hat es zu ergänzen gerne!
-* Die App hat bisher nur auf meine Bedürfnisse zugeschnittene Funktionalität. Wer sie erweitern will, kann dies herzlich gerne.
-* Alles ist für R geschrieben. Ein paar Zeilen Code machen die ausgegeben Objekte für Matlab kompatibel. Das bleibt aber eine leichte und perfekte Übung zum Zusammenarbeiten über GIT. 
+## Just saying...
 
-## Bedienung
-* Im Upload muss eine .csv Datei hochgeladen werden, die eine Spalte hat mit IDs. Die Spalte *muss* "Symbol" heissen. Als ID kann ein Datastream Symbol oder eine ISIN (ich glaube auch ein paar andere IDs) verwendet werden. Die Spalten der .csv sollen durch ";" getrennt sein. Alle Spalten bis auf Symbol werden aber ignoriert.
+* Use it locally. At the moment it saves all files in the "Assets/" folder
+* The app has only limited error handling. 
+* The app is taylored to my specific needs. Extensions/Contributions appreciated. 
+
+## Will there be updates
+
+Yes. I will add a feature to check the data quality.
