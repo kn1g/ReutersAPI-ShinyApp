@@ -11,14 +11,18 @@ library(shiny)
 source("makeAssetObject.R")
 source("saveError.R")
 source("saveAssets.R")
+source("getAssetObjectInfo.R")
 
 shinyServer(function(input, output) {
   
   observeEvent(input$req_btn,{
-    # Loads the .csv sheet to get the IDs to query
-    CSVFile <- tryCatch({
+    # Loads the .csv sheets to get the IDs to query
+    # First get the dir with the .csv sheets
+    CSVFile <- 
+      
+      tryCatch({
       inFile  <- input$IdentifierList
-      read.csv(inFile$datapath, header=input$header, sep = ";")
+      read.csv(inFile$datapath, header=T, sep = ";")
     }, warning = function(w) {
       print(w)
       print("Warning: Something went wrong with the CSV File Uplaod")
@@ -39,7 +43,7 @@ shinyServer(function(input, output) {
       # display number of Assets
       
       # Which securities do you want to query
-      SETTINGS$securities  <- CSVFile$Symbol
+      SETTINGS$securities  <- as.character(CSVFile$Symbol)
       # What data do you want to query for the security
       #SETTINGS$fields      <- strsplit(gsub("\\s", "", input$fields) , ",")[[1]] # old version
       SETTINGS$fields      <- gsub("\\s", "", input$fields)
@@ -72,20 +76,20 @@ shinyServer(function(input, output) {
       AssetObjects <- list()
       # in case there where connection problems and the download needs to be resumed
       if(input$resumeQuery){
-        # check how many assets are already downloaded (NOTE: if anything changed like the order it will be chaos!)
-        # I could doublecheck the ISINS but this costs too much time thats why I just count files
+        # check what assets have already been downloaded and skip them
         f <- list.files(path = "Assets",pattern=".rds", full.names = T)
         # read in prvious files
         AssetObjects <- lapply(f, readRDS)
-        startindex <- length(f)+1
-      }else{
-        startindex <- 1
+        # check it and ignore these assets
+        SETTINGS$securities <- SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(AssetOverview$TheSymbol))]
+        
       }
+      
       n <-length(SETTINGS$securities)
       
-      withProgress(message = 'Requesting data...', value = (startindex/n), {
+      withProgress(message = 'Requesting data...', value = (1/n), {
         # create sequence
-        indices <- startindex:n
+        indices <- 1:n
         queryindices <- split(indices, as.numeric(gl(length(indices),blocksize,length(indices))))
         for(i in 1:length(queryindices)){
           # query the assets
@@ -95,15 +99,28 @@ shinyServer(function(input, output) {
         incProgress(length(queryindices[[i]])/n, detail = paste("Requested", queryindices[[i]][length(queryindices[[i]])], "Assets", "out of", n))
         }
       })
-      
-      
-      
       print("Done.")
     }else{
       print("CSV upload failed. Check format. It needs to be seperated by a ; and at least have a column named <Symbol>. Maybe you just forgot to load a file. Please try again.")
     }
     
     })
+  # Stage 1 - output list with assets that could not been queried at all
+  observeEvent(input$clean_CSV_btn,{
+  })
+  
+  # Stage 2 - kill all assets that have no TS data
+  observeEvent(input$clean_NoTSData_btn,{
+    # all object 
+  })
+  observeEvent(input$clean_NoTSData_btn,{ 
+    # Stage 3 - kill all assets that have not more than x datapoints
+    
+    # Stage 4 - 
+    
+    # Last Stage - Save assets with clean data.frame names and delete obsolete data
+    
+  })
 
   observeEvent(input$stat_btn,{
     # output variables
@@ -114,11 +131,13 @@ shinyServer(function(input, output) {
     NoISIN <- 0
     NoDataNoISIN <- 0
     DataNoISIN <- 0
+    hasPrice <- F
+    hasVolume <- F
     
     # Loads the .csv sheet to get the IDs to query
     CSVFile <- tryCatch({
       inFile  <- input$IdentifierList
-      read.csv(inFile$datapath, header=input$header, sep = ";")
+      read.csv(inFile$datapath, header=T, sep = ";")
     }, warning = function(w) {
       print(w)
       print("Warning: Something went wrong with the CSV File Uplaod")
@@ -138,18 +157,7 @@ shinyServer(function(input, output) {
     f <- list.files(path = "Assets",pattern=".rds", full.names = T)
     # read in prvious files
     AssetObjects <- lapply(f, readRDS)
-    AssetOverview <- lapply(AssetObjects, function(x){
-      
-      hasData <- ifelse(dim(x$TSData)[1] > 0,T,F) # check if TS request returned data
-      theISIN <- ifelse(as.character(x$ISIN) == "NA", NA, as.character( x$ISIN) ) # check if static req returned ISIN
-      theDSCD <- ifelse(as.character(x$DSCode) == "NA", NA, as.character( x$DSCode) ) # check if static request returned anything
-      
-      return(list(HasData = hasData,
-                  TheISIN = theISIN,
-                  TheSymbol = x$AssetID2,
-                  TheDSCD = theDSCD))
-      
-    })
+    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, SETTINGS$fields)
     
     # quick check if there is any object that has data in any way but no DSCD - I assume it it not possible because the DSCD is at least given if there is any data
     #fuckingerror <- lapply(AssetObjects, function(x){
@@ -168,6 +176,9 @@ shinyServer(function(input, output) {
     CSVFile$theISIN <- rep(NA, length(CSVFile$Symbol))
     CSVFile$theDSCD <- rep(NA, length(CSVFile$Symbol))
     CSVFile$ChSymbl <- rep(NA, length(CSVFile$Symbol))
+    for(field in SETTINGS$fields){
+      CSVFile[[field]] <- rep(NA, length(CSVFile$Symbol))
+    }
     
     # Append to CSV
     for(i in 1:length(AssetOverview$TheSymbol)){
@@ -177,6 +188,9 @@ shinyServer(function(input, output) {
       CSVFile$theISIN[indx] <- AssetOverview$TheISIN[i]
       CSVFile$ChSymbl[indx] <- AssetOverview$TheSymbol[i]
       CSVFile$theDSCD[indx] <- AssetOverview$TheDSCD[i]
+      for(field in SETTINGS$fields){
+        CSVFile[[field]][indx] <- AssetOverview[[field]][i]
+      }
     }
     
     
@@ -204,9 +218,14 @@ shinyServer(function(input, output) {
       }
     )
     
+    # return if the queried data is complete
+    #for(i in 1:length()){
+    #  p(paste("I could query"),SETTINGS$[1]," for "),
+    #}
+    
     output$noDataAvailable <- renderUI({
       list(
-        p(paste("In total I tried to queried",length(AssetOverview$TheSymbol),"assets. Should be the same as:",length(CSVFile$Symbol))),
+        p(paste("In total I tried to queried",length(AssetOverview$TheSymbol),"assets. You requested:",length(CSVFile$Symbol))),
         p(connectionProbs),  
         # No Object for these
         p(paste("I could not get any data for:",length(noEntry))),
@@ -220,6 +239,11 @@ shinyServer(function(input, output) {
         p(paste("I created an object and had data but no ISIN for (Country code not set):",length(which(AssetOverview$HasData==T & is.na(AssetOverview$TheISIN))))),
         # No ISIN no data (Just Symbol)
         p(paste("I did not get an ISIN nor data for:", length(which(AssetOverview$HasData == F & is.na(AssetOverview$TheISIN))))),
+        # check which assets have volume
+        p(paste("I got volume data for that many assets:", length(which(AssetOverview$HasVO == T)))),
+        # check which assets have price
+        p(paste("I got volume data for that many assets:", length(which(AssetOverview$P_0023x_S == T)))),
+        
         
         downloadButton('downloadAssetObjects_Btn', 'Download')
       )
