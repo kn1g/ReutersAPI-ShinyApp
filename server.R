@@ -18,9 +18,7 @@ shinyServer(function(input, output) {
   observeEvent(input$req_btn,{
     # Loads the .csv sheets to get the IDs to query
     # First get the dir with the .csv sheets
-    CSVFile <- 
-      
-      tryCatch({
+    CSVFile <- tryCatch({
       inFile  <- input$IdentifierList
       read.csv(inFile$datapath, header=T, sep = ";")
     }, warning = function(w) {
@@ -40,8 +38,6 @@ shinyServer(function(input, output) {
       
       ## Settings
       SETTINGS <- list()
-      # display number of Assets
-      
       # Which securities do you want to query
       SETTINGS$securities  <- as.character(CSVFile$Symbol)
       # What data do you want to query for the security
@@ -51,27 +47,16 @@ shinyServer(function(input, output) {
       SETTINGS$fromDate    <- input$dateRange[1]
       # date in yyyy-mm-dd format at which to end series.
       SETTINGS$toDate      <- input$dateRange[2]
-      # check if one day is requested or a range (TODO)
-      #if(SETTINGS$fromDate == SETTINGS$toDate){
-      #  # date in yyyy-mm-dd format, if only one day is requested. If set, ignores fromDate, toDate and period.
-      #  SETTINGS$datum       <- input$dateRange
-      #}else{
-      #  SETTINGS$datum       <- F
-      #}
       # character describing the periodicity ('D','W','M','Q','Y'), defaults to daily
       SETTINGS$periodicity <- input$periodicity
-      # boolean whether to output a dataframe in the "Data" row of the returned matrix.
-      # SETTINGS$asDataFrame <- T # TODO
       # default "Datastream", useful if you want to access another Dataworks Enterprise data source. You can obtain the list of sources you have access to by using the dsSources() function in this package.
       # SETTINGS$source      <- "Datastream"
-      
       # Blocksize determines how many assets will be request at one
-      blocksize <- input$blocksize
+      SETTINGS$blocksize <- input$blocksize
       
-      # Loops over each ID 
-      # It could also be one request
-      # lapply wäre schneller aber die Request können nicht parallelisiert werden
-      # AssetObjects <- lapply(SETTINGS$securities[1:10], makeAssetObject, SETTINGS)
+      # Loops over each ID. Can also be one
+      # lapply wäre schneller aber die Request können nicht parallelisiert werden. Außerdem ist der Flaschenhals die response time vom server
+      # AssetObjects <- lapply(SETTINGS$securities, makeAssetObject, SETTINGS)
       # Daher for Schleife um lieber Fortschritt zu tracken und einzelnd abspeichern zu können, falls Verbindung abbricht etc.
       AssetObjects <- list()
       # in case there where connection problems and the download needs to be resumed
@@ -80,23 +65,23 @@ shinyServer(function(input, output) {
         f <- list.files(path = "Assets",pattern=".rds", full.names = T)
         # read in prvious files
         AssetObjects <- lapply(f, readRDS)
-        # check it and ignore these assets
+        # check which assets have already been downloaded and ignore these assets
+        AlreadyexistingObjects <- lapply(AssetObjects, function(x){x$AssetID})
+        AlreadyexistingObjects <- unlist(AlreadyexistingObjects)
         SETTINGS$securities <- SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(AssetOverview$TheSymbol))]
-        
       }
       
+      # Request the data
       n <-length(SETTINGS$securities)
-      
       withProgress(message = 'Requesting data...', value = (1/n), {
         # create sequence
         indices <- 1:n
-        queryindices <- split(indices, as.numeric(gl(length(indices),blocksize,length(indices))))
+        queryindices <- split(indices, as.numeric(gl(length(indices),SETTINGS$blocksize,length(indices))))
         for(i in 1:length(queryindices)){
           # query the assets
           makeAssetObject(user, SETTINGS, CSVFile, queryindices[[i]])
-          
           # Progress bar 
-        incProgress(length(queryindices[[i]])/n, detail = paste("Requested", queryindices[[i]][length(queryindices[[i]])], "Assets", "out of", n))
+          incProgress(length(queryindices[[i]])/n, detail = paste("Requested", queryindices[[i]][length(queryindices[[i]])], "Assets", "out of", n))
         }
       })
       print("Done.")
@@ -104,7 +89,9 @@ shinyServer(function(input, output) {
       print("CSV upload failed. Check format. It needs to be seperated by a ; and at least have a column named <Symbol>. Maybe you just forgot to load a file. Please try again.")
     }
     
-    })
+  })
+
+  
   # Stage 1 - output list with assets that could not been queried at all
   observeEvent(input$clean_CSV_btn,{
   })
@@ -156,7 +143,7 @@ shinyServer(function(input, output) {
     # check if assets have ISIN and TS as well as static data
     f <- list.files(path = "Assets",pattern=".rds", full.names = T)
     # read in prvious files
-    AssetObjects <- lapply(f, readRDS)
+    AssetObjects  <- lapply(f, readRDS)
     AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, SETTINGS$fields)
     
     # quick check if there is any object that has data in any way but no DSCD - I assume it it not possible because the DSCD is at least given if there is any data
