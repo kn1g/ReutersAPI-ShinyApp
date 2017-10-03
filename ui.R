@@ -13,7 +13,6 @@ shinyUI(
                          tabPanel("Query Data",
                            textInput("username","Username"),
                            passwordInput("password","Password"),
-                           checkboxInput('header', 'Header', TRUE),
                            fileInput("IdentifierList","List of IDs (ISIN, RIC)",
                                      accept = c(
                                        'text/csv',
