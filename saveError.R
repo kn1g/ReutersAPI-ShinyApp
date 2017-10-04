@@ -21,10 +21,10 @@ saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID
   # write into error logfile
   cat(paste(Sys.time(),
             ERRORCODE,
-            '"',gsub("[\r\n]", "", gsub("\"","",ownError.msg)),'"',
-            '"',gsub("[\r\n]", "", gsub("\"","",thridPartyError.msg)),'"',
-            '"',AssetID,'"',
-            '"',ISIN,'"',
+            paste('"',gsub("[\r\n]", "", gsub("\"","",ownError.msg)),'"',sep=""),
+            paste('"',gsub("[\r\n]", "", gsub("\"","",thridPartyError.msg)),'"',sep=""),
+            paste('"',AssetID,'"',sep=""),
+            paste('"',ISIN,'"',sep=""),
             sep=","), 
       file=logFile, append=TRUE, sep = "\n")
   
