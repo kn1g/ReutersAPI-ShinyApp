@@ -4,7 +4,7 @@ saveAssets <- function(AssetObject){
     dir.create("Assets") 
   }
     if(is.na(AssetObject$ISIN) || AssetObject$ISIN == "NA"){
-      saveRDS(AssetObject, file= paste("Assets/","NoISIN_",sample(1:10000,1),sample(1:10000,1),"_",as.character(AssetObject$DSCode),".rds", sep= ""))
+      saveRDS(AssetObject, file= paste("Assets/","NoISIN_",as.character(AssetObject$DSCode),"-",sample(1:1000000,1),".rds", sep= ""))
     }else{
       saveRDS(AssetObject, file= paste("Assets/",as.character(AssetObject$ISIN),".rds", sep= ""))
     }
