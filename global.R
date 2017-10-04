@@ -15,3 +15,4 @@ library(RDatastream)
 ## OR (https://github.com/CharlesCara/DatastreamDSWS2R)
 #library("DatastreamDSWS2R")
 
+library(pryr)
