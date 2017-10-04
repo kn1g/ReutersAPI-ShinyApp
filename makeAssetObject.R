@@ -10,7 +10,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   # replace & with URL encoding character
   AssetID_staticRq <- gsub("&","&#38;", SETTINGS$securities[queryindices]) 
   AssetID_TSRq     <- AssetID_staticRq
-  
+  saveMemUse(1)
   ## Query the company information. Exit loop if request has data Try max. 10 times
   it <- 1
   while(!is.list(staticReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
@@ -50,7 +50,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     return(F)
   }
   ## End of query
-  
+  saveMemUse(2)
   ## if the static query returned anything, save it as an error if it has no ISIN or save the asset info 
   # firstcheck weather it has an ISIN in it if not return error 
   AssetObjects <- list()
@@ -84,7 +84,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
                               )
   }
   ## end defining an AssetObject from static query
-    
+  saveMemUse(3)
   ## Prepare TS request
   qreq <- vector()
   
@@ -125,6 +125,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       # prepare query string
       qreq[i] <- paste(AssetID_TSRq[i],"~","=",SETTINGS$fields,"~",fromDate,"~",":",SETTINGS$toDate,"~",SETTINGS$periodicity,sep="")
     } # end for
+    saveMemUse(4)
     ## Query the TS information. Exit loop if request has data Try max. 10 times
     it <- 1
     while(!is.list(TSReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
@@ -170,6 +171,6 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   } # end if
   # save the Assets
   lapply(AssetObjects, saveAssets)
-  
+  saveMemUse(5)
   return(T)
 }
