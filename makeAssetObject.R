@@ -133,7 +133,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       TSReq <- tryCatch({
         # Request time series
         ds(user, 
-           qreq)
+           requests = qreq)
       },
       error=function(e){
         # log error 
