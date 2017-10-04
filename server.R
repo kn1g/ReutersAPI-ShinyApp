@@ -68,7 +68,12 @@ shinyServer(function(input, output) {
         # check which assets have already been downloaded and ignore these assets
         AlreadyexistingObjects <- lapply(AssetObjects, function(x){x$AssetID})
         AlreadyexistingObjects <- unlist(AlreadyexistingObjects)
-        SETTINGS$securities <- SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(AssetOverview$TheSymbol))]
+        SETTINGS$securities <- SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(AlreadyexistingObjects))]
+        # check error log to also ignore the duplicates
+        if(file.exists("log/error_log.csv")){
+          errorLog <- read.csv("log/error_log.csv", header=T, sep = ",", stringsAsFactors = F)
+        }
+        SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
       }
       
       # Request the data
@@ -187,7 +192,8 @@ shinyServer(function(input, output) {
       
       # save how man assets didn't have an ISIN
       NoISIN <- errorLog$AssetID[which(errorLog$Error_ID == 3)]
-      
+      # get all AssetIDs that where not queried because of some error
+      errorAssetIDs <-  errorLog$AssetID
     }
     
     connectionProbs <- ifelse((any(errorLog$Error_ID == 2) | any(errorLog$Error_ID == 5)),"I maybe missed some assets because of connection problems", "Connection was fine all the time.") 
@@ -212,8 +218,14 @@ shinyServer(function(input, output) {
     
     output$noDataAvailable <- renderUI({
       list(
-        p(paste("In total I tried to queried",length(AssetOverview$TheSymbol),"assets. You requested:",length(CSVFile$Symbol))),
-        p(connectionProbs),  
+        p(paste("The CSV File has",length(CSVFile$Symbol),"Symbols.")),
+        p(paste("There where",length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),"duplicates (ISIN) in the CSV File.")),
+        p(paste("I missed",(length(errorLog$AssetID[which(errorLog$Error_ID == 2)])+length(errorLog$AssetID[which(errorLog$Error_ID == 5)])),"assets because of connection problems.")), 
+        p(paste("I got",length(AssetOverview$TheSymbol),"asset objects.")),
+        p(paste("The total number of Symbols from the csv file (",length(CSVFile$Symbol),") should match the sum of the duplicates, missed objects and the objects I have (",sum(length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),
+                                                                                                                                                                                 length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),
+                                                                                                                                                                                 length(errorLog$AssetID[which(errorLog$Error_ID == 5)]),
+                                                                                                                                                                                 length(AssetOverview$TheSymbol)),").")),
         # No Object for these
         p(paste("I could not get any data for:",length(noEntry))),
         # just ISIN no data
