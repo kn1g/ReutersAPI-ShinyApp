@@ -8,7 +8,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   
   ## IF the ID is not an ISIN it could contain an compound sign (&), which causes trouble when passing over to the xml request in ds()
   # replace & with URL encoding character
-  AssetID_staticRq <- gsub("&","&#38;", CSVFile$Symbol[queryindices]) 
+  AssetID_staticRq <- gsub("&","&#38;", SETTINGS$securities[queryindices]) 
   AssetID_TSRq     <- AssetID_staticRq
   
   ## Query the company information. Exit loop if request has data Try max. 10 times
@@ -57,7 +57,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   for(i in 1:length(staticReq["Data",])){
     
     if(is.null(staticReq[["Data",i]]$ISIN)){
-      print(paste("Hier stimmt was nicht. ISISN ist NULL:",staticReq[["Data",i]]$SYMBOL))
+      print(paste("Hier stimmt was nicht. Symbol ist NULL:",staticReq[["Data",i]]$SYMBOL))
     }else{
       if(nchar(as.character(staticReq[["Data",i]]$ISIN)) != 12){ 
         # log error 
@@ -87,66 +87,87 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     
   ## Prepare TS request
   qreq <- vector()
-  for(i in 1:length(AssetID_TSRq)){
-    
-    # to avoid queries over a long timespan check if startdate is available in the loaded file and get it
-    if(length(CSVFile$Start.Date[i])>0){
-      # THIS MUST BE BETTER - Convert German start date
-      temp <- strsplit(as.character(CSVFile$Start.Date[i]),"\\.")
-      temp <- paste(temp[[1]][3],"-",temp[[1]][2],"-",temp[[1]][1],sep="")
-      fromDate <- temp
-    }else{
-      fromDate <- SETTINGS$fromDate
-    }
-    ## End define startdate
-    
-    # prepare query string
-    qreq[i] <- paste(AssetID_TSRq[i],"~","=",SETTINGS$fields,"~",fromDate,"~",":",SETTINGS$toDate,"~",SETTINGS$periodicity,sep="")
+  
+  # check for duplicates and skip them
+  f <- list.files(path = "Assets",pattern=".rds", full.names = T)
+  ExistingObj  <- lapply(f, readRDS)
+  duplicatesObjects <- unlist(lapply(ExistingObj, function(x){x$ISIN}))
+  # get the duplicates and delte them
+  duplicates   <-  which(AssetID_TSRq %in% duplicatesObjects)
+  duplicates   <-  unique(c(duplicates, which(duplicated(AssetID_TSRq))))
+  AssetID_TSRq.old <- AssetID_TSRq
+  AssetID_TSRq <-  AssetID_TSRq[setdiff(seq_along(AssetID_TSRq), as.numeric(duplicates))]
+  
+  for(dupli in duplicates){
+    saveError(7, # Error Code 7 : Duplicated Asset
+              ownError.msg = paste("These Objects where duplicates and skipped"),
+              AssetID.arg  = AssetID_staticRq[dupli],
+              ISIN.arg     = AssetID_TSRq.old[dupli])
   }
   
-  ## Query the TS information. Exit loop if request has data Try max. 10 times
-  it <- 1
-  while(!is.list(TSReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
-    # Try to make the query and save 
-    TSReq <- tryCatch({
-      # Request time series
-      ds(user, 
-         qreq)
-    },
-    error=function(e){
-      # log error 
-      saveError(4, # Error Code 4 : Connection or Account problems in TS request
-                ownError.msg = paste("I tried", it, "time(s) to query the TS data."),
-                thridPartyError.msg = e) 
-      Sys.sleep(sleeptime)
-      NULL # set staticReq to NULL
-    },
-    warning=function(w){
-      print(paste("I tried", it, "time(s) to query the TS data."))
-      print("I got this warning: ")
-      print(e)
-      Sys.sleep(sleeptime)
-      NULL # set staticReq to NULL
-    })
-    it <- it +1
-  }
-  # write error into object
-  if(it >= maxtries){
-    for(asset in AssetID_TSRq){
-      saveError(5, # Error Code 5 : Stores all AssetIDs that couldn't queried (Connection or Account problems (TS request) finally jumped to the next asset)
-                ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
-                AssetID.arg = asset) 
+  # delete duplicated assetobjects
+  AssetObjects <- AssetObjects[setdiff(seq_along(AssetID_TSRq.old), as.numeric(duplicates))]
+  
+  if(length(AssetID_TSRq) > 0){
+    for(i in 1:length(AssetID_TSRq)){
+      
+      # to avoid queries over a long timespan check if startdate is available in the loaded file and get it
+      if(length(CSVFile$Start.Date[i])>0){
+        # THIS MUST BE BETTER - Convert German start date
+        temp <- strsplit(as.character(CSVFile$Start.Date[i]),"\\.")
+        temp <- paste(temp[[1]][3],"-",temp[[1]][2],"-",temp[[1]][1],sep="")
+        fromDate <- temp
+      }else{
+        fromDate <- SETTINGS$fromDate
       }
-    # end function and try next asset block
-    return(F)
-  }
-  ## End of query
-  
-  # save data
-  for(i in 1:length(AssetID_TSRq)){
-    AssetObjects[[i]]$TSData <- TSReq[["Data",i]]
-  }
-  
+      ## End define startdate
+      
+      # prepare query string
+      qreq[i] <- paste(AssetID_TSRq[i],"~","=",SETTINGS$fields,"~",fromDate,"~",":",SETTINGS$toDate,"~",SETTINGS$periodicity,sep="")
+    } # end for
+    ## Query the TS information. Exit loop if request has data Try max. 10 times
+    it <- 1
+    while(!is.list(TSReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
+      # Try to make the query and save 
+      TSReq <- tryCatch({
+        # Request time series
+        ds(user, 
+           qreq)
+      },
+      error=function(e){
+        # log error 
+        saveError(4, # Error Code 4 : Connection or Account problems in TS request
+                  ownError.msg = paste("I tried", it, "time(s) to query the TS data."),
+                  thridPartyError.msg = e) 
+        Sys.sleep(sleeptime)
+        NULL # set staticReq to NULL
+      },
+      warning=function(w){
+        print(paste("I tried", it, "time(s) to query the TS data."))
+        print("I got this warning: ")
+        print(e)
+        Sys.sleep(sleeptime)
+        NULL # set staticReq to NULL
+      })
+      it <- it +1
+    }
+    # write error into object
+    if(it >= maxtries){
+      for(asset in AssetID_TSRq){
+        saveError(5, # Error Code 5 : Stores all AssetIDs that couldn't queried (Connection or Account problems (TS request) finally jumped to the next asset)
+                  ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
+                  AssetID.arg = asset) 
+      }
+      # end function and try next asset block
+      return(F)
+    }
+    ## End of query
+    
+    # save data
+    for(i in seq_along(AssetID_TSRq)){
+      AssetObjects[[i]]$TSData <- TSReq[["Data",i]]
+    }
+  } # end if
   # save the Assets
   lapply(AssetObjects, saveAssets)
   
