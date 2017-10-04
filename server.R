@@ -12,6 +12,7 @@ source("makeAssetObject.R")
 source("saveError.R")
 source("saveAssets.R")
 source("getAssetObjectInfo.R")
+source("saveMemUse.R")
 
 shinyServer(function(input, output) {
   
