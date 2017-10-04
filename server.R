@@ -74,6 +74,7 @@ shinyServer(function(input, output) {
           errorLog <- read.csv("log/error_log.csv", header=T, sep = ",", stringsAsFactors = F)
         }
         SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
+        SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 3)]))]
       }
       
       # Request the data
