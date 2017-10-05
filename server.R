@@ -127,6 +127,8 @@ shinyServer(function(input, output) {
     DataNoISIN <- 0
     hasPrice <- F
     hasVolume <- F
+    SETTINGS <- list()
+    SETTINGS$fields <- gsub("\\s", "", input$fields)
     
     # Loads the .csv sheet to get the IDs to query
     CSVFile <- tryCatch({
@@ -151,7 +153,7 @@ shinyServer(function(input, output) {
     f <- list.files(path = "Assets",pattern=".rds", full.names = T)
     # read in prvious files
     AssetObjects  <- lapply(f, readRDS)
-    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, gsub("\\s", "", input$fields))
+    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo,SETTINGS$fields)
     
     # quick check if there is any object that has data in any way but no DSCD - I assume it it not possible because the DSCD is at least given if there is any data
     #fuckingerror <- lapply(AssetObjects, function(x){
