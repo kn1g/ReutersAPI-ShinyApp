@@ -151,7 +151,7 @@ shinyServer(function(input, output) {
     f <- list.files(path = "Assets",pattern=".rds", full.names = T)
     # read in prvious files
     AssetObjects  <- lapply(f, readRDS)
-    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, SETTINGS$fields)
+    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, gsub("\\s", "", input$fields))
     
     # quick check if there is any object that has data in any way but no DSCD - I assume it it not possible because the DSCD is at least given if there is any data
     #fuckingerror <- lapply(AssetObjects, function(x){
