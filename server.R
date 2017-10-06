@@ -128,7 +128,7 @@ shinyServer(function(input, output) {
     hasPrice <- F
     hasVolume <- F
     SETTINGS <- list()
-    SETTINGS$fields <- gsub("\\s", "", input$fields)
+    SETTINGS$fields <- strsplit(gsub("#","_x0023_",gsub("\\s", "", input$fields)), ",")[[1]]
     
     # Loads the .csv sheet to get the IDs to query
     CSVFile <- tryCatch({
@@ -185,7 +185,7 @@ shinyServer(function(input, output) {
       CSVFile$ChSymbl[indx] <- AssetOverview$TheSymbol[i]
       CSVFile$theDSCD[indx] <- AssetOverview$TheDSCD[i]
       for(field in SETTINGS$fields){
-        CSVFile[[field]][indx] <- AssetOverview[[field]][i]
+        CSVFile[[field]][indx] <- AssetOverview[[paste("Has",field,sep="")]][i]
       }
     }
     
@@ -223,8 +223,9 @@ shinyServer(function(input, output) {
     output$noDataAvailable <- renderUI({
       list(
         p(paste("The CSV File has",length(CSVFile$Symbol),"Symbols.")),
+        p(paste("Because of connection problems while querying the static data I missed",length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),"assets.")),
+        p(paste("Because of connection problems while querying the TS data I missed",length(errorLog$AssetID[which(errorLog$Error_ID == 5)]),"assets.")),
         p(paste("There where",length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),"duplicates (ISIN) in the CSV File.")),
-        p(paste("I missed",(length(errorLog$AssetID[which(errorLog$Error_ID == 2)])+length(errorLog$AssetID[which(errorLog$Error_ID == 5)])),"assets because of connection problems.")), 
         p(paste("I got",length(AssetOverview$TheSymbol),"asset objects.")),
         p(paste("The total number of Symbols from the csv file (",length(CSVFile$Symbol),") should match the sum of the duplicates, missed objects and the objects I have (",sum(length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),
                                                                                                                                                                                  length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),
