@@ -89,13 +89,18 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   qreq <- vector()
   
   # check for duplicates and skip them
+  #first save the old order (In which AssetObjects are arranged)
+  AssetID_TSRq.old <- AssetID_TSRq
+  # read in all assets
   f <- list.files(path = "Assets",pattern=".rds", full.names = T)
   ExistingObj  <- lapply(f, readRDS)
-  duplicatesObjects <- unlist(lapply(ExistingObj, function(x){x$ISIN}))
-  # get the duplicates and delte them
-  duplicates   <-  which(AssetID_TSRq %in% duplicatesObjects)
+  # Objects that have already been queried based on the ISIN
+  # ISINsAlreadyQueried <- unlist(lapply(ExistingObj, function(x){x$ISIN}))
+  SymbsAlreadyQueried <- unlist(lapply(ExistingObj, function(x){x$AssetID}))
+  # get the duplicates 
+  duplicates   <-  which(AssetID_TSRq %in% SymbsAlreadyQueried)
   duplicates   <-  unique(c(duplicates, which(duplicated(AssetID_TSRq))))
-  AssetID_TSRq.old <- AssetID_TSRq
+  # delete them
   AssetID_TSRq <-  AssetID_TSRq[setdiff(seq_along(AssetID_TSRq), as.numeric(duplicates))]
   
   for(dupli in duplicates){
