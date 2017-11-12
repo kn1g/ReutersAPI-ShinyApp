@@ -6,6 +6,7 @@
 #
 
 library(shiny)
+library(openssl)
 
 # source functions
 source("makeAssetObject.R")
@@ -13,6 +14,7 @@ source("saveError.R")
 source("saveAssets.R")
 source("getAssetObjectInfo.R")
 source("saveMemUse.R")
+source("createSessionID.R")
 
 shinyServer(function(input, output) {
   
@@ -55,6 +57,8 @@ shinyServer(function(input, output) {
       # Blocksize determines how many assets will be request at one
       SETTINGS$blocksize <- input$blocksize
       
+      errorLogPath <- input$errorlog$datapath
+      
       # Loops over each ID. Can also be one
       # lapply wäre schneller aber die Request können nicht parallelisiert werden. Außerdem ist der Flaschenhals die response time vom server
       # AssetObjects <- lapply(SETTINGS$securities, makeAssetObject, SETTINGS)
@@ -62,20 +66,19 @@ shinyServer(function(input, output) {
       AssetObjects <- list()
       # in case there where connection problems and the download needs to be resumed
       if(input$resumeQuery){
-        # check what assets have already been downloaded and skip them
-        f <- list.files(path = "Assets",pattern=".rds", full.names = T)
-        # read in prvious files
-        AssetObjects <- lapply(f, readRDS)
-        # check which assets have already been downloaded and ignore these assets
-        AlreadyexistingObjects <- lapply(AssetObjects, function(x){x$AssetID})
-        AlreadyexistingObjects <- unlist(AlreadyexistingObjects)
-        SETTINGS$securities <- SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(AlreadyexistingObjects))]
-        # check error log to also ignore the duplicates
-        if(file.exists("log/error_log.csv")){
-          errorLog <- read.csv("log/error_log.csv", header=T, sep = ",", stringsAsFactors = F)
+        ## delete already queried assets and duplicates
+        # check error log to ignore the duplicates
+        if(file.exists(errorLogPath)){
+          errorLog <- read.csv(errorLogPath, header=T, sep = ",", stringsAsFactors = F)
+          SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
         }
-        SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
-        SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 3)]))]
+        # read in all existing assets
+        f <- list.files(path = "Assets",pattern=".rds", full.names = T)
+        ExistingObj  <- lapply(f, readRDS)
+        # Get the symbols of the already queried objects
+        SymbsAlreadyQueried <- unlist(lapply(ExistingObj, function(x){x$AssetID}))
+        # delete the already existing objects
+        SETTINGS$securities   <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(SymbsAlreadyQueried))]
       }
       
       # Request the data

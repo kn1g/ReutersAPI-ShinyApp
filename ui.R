@@ -27,6 +27,15 @@ shinyUI(
                            selectInput("periodicity", "Periodicity", c("daily" = 'D',"weekly" = 'W',"monthly" = 'M',"quaterly" = 'Q',"yearly" = 'Y'), selected	= "M"),
                            numericInput("blocksize","How many Asset do you want to query in one query? (More Assets more risk something crashes) but faster",value=10),
                            checkboxInput("resumeQuery", "Do you want to resume a query?"),
+                           conditionalPanel(condition = "input.resumeQuery",
+                                            fileInput("errorlog","Path to the previous log file",
+                                                                                           accept = c(
+                                                                                             'text/csv',
+                                                                                             'text/comma-separated-values',
+                                                                                             'text/tab-separated-values',
+                                                                                             'text/plain',
+                                                                                             '.csv')
+                           )),
                            actionButton("req_btn","Query data")
                          ),
                          tabPanel("Data Statistics",

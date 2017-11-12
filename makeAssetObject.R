@@ -23,7 +23,8 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       # log error 
       saveError(1, # Error Code 1 : Connection or Account problems
                 ownError.msg = paste("I tried", it, "time(s) to query the static data."),
-                thridPartyError.msg = e) 
+                thridPartyError.msg = e,
+                input$IdentifierList$name) 
       Sys.sleep(sleeptime)
       NULL # set staticReq to NULL
     },
@@ -44,7 +45,8 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     for(asset in AssetID_staticRq){
       saveError(2, # Error Code 2: Stores all AssetIDs that couldn't queried in static request (Connection or Account problems finally jumped to the next asset)
                 ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
-                AssetID.arg = asset) 
+                AssetID.arg = asset,
+                input$IdentifierList$name) 
     }
     # end function and try next asset block
     return(F)
@@ -63,7 +65,8 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
         # log error 
         saveError(3, # Error Code 3 : Could not match assetID and ISIN
                   ownError.msg = paste("I could not match any ISIN to the identifier:", AssetID_staticRq[i]),
-                  AssetID.arg  = AssetID_staticRq[i]) 
+                  AssetID.arg  = AssetID_staticRq[i],
+                  input$IdentifierList$name) 
       }else{
         # replace asset ID with ISIN if it could be matched. To query with ISIN instead of ID if possible
         AssetID_TSRq[i] <- as.character(staticReq[["Data",i]]$ISIN)
@@ -91,27 +94,22 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   # check for duplicates and skip them
   #first save the old order (In which AssetObjects are arranged)
   AssetID_TSRq.old <- AssetID_TSRq
-  # read in all assets
-  f <- list.files(path = "Assets",pattern=".rds", full.names = T)
-  ExistingObj  <- lapply(f, readRDS)
-  # Objects that have already been queried based on the ISIN
-  # ISINsAlreadyQueried <- unlist(lapply(ExistingObj, function(x){x$ISIN}))
-  SymbsAlreadyQueried <- unlist(lapply(ExistingObj, function(x){x$AssetID}))
-  # get the duplicates 
-  duplicates   <-  which(AssetID_TSRq %in% SymbsAlreadyQueried)
-  duplicates   <-  unique(c(duplicates, which(duplicated(AssetID_TSRq))))
-  # delete them
-  AssetID_TSRq <-  AssetID_TSRq[setdiff(seq_along(AssetID_TSRq), as.numeric(duplicates))]
-  
+  duplicates   <-  which(duplicated(AssetID_TSRq))
+  # save the duplicates in the error log
   for(dupli in duplicates){
     saveError(7, # Error Code 7 : Duplicated Asset
               ownError.msg = paste("These Objects where duplicates and skipped"),
               AssetID.arg  = AssetID_staticRq[dupli],
-              ISIN.arg     = AssetID_TSRq.old[dupli])
+              ISIN.arg     = AssetID_TSRq.old[dupli],
+              input$IdentifierList$name)
   }
+  # delete them
+  AssetID_TSRq <- AssetID_TSRq[setdiff(seq_along(AssetID_TSRq), as.numeric(duplicates))]
+  # also delete duplicated assetobjects
+  # AssetObjects <- AssetObjects[setdiff(seq_along(AssetID_TSRq.old), as.numeric(duplicates))]
+
   
-  # delete duplicated assetobjects
-  AssetObjects <- AssetObjects[setdiff(seq_along(AssetID_TSRq.old), as.numeric(duplicates))]
+  
   
   if(length(AssetID_TSRq) > 0){
     for(i in 1:length(AssetID_TSRq)){
@@ -144,7 +142,8 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
         # log error 
         saveError(4, # Error Code 4 : Connection or Account problems in TS request
                   ownError.msg = paste("I tried", it, "time(s) to query the TS data."),
-                  thridPartyError.msg = e) 
+                  thridPartyError.msg = e,
+                  input$IdentifierList$name) 
         Sys.sleep(sleeptime)
         NULL # set staticReq to NULL
       },
@@ -162,7 +161,8 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       for(asset in AssetID_TSRq){
         saveError(5, # Error Code 5 : Stores all AssetIDs that couldn't queried (Connection or Account problems (TS request) finally jumped to the next asset)
                   ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
-                  AssetID.arg = asset) 
+                  AssetID.arg = asset,
+                  input$IdentifierList$name) 
       }
       # end function and try next asset block
       return(F)
