@@ -1,15 +1,17 @@
 makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   ## First query and save company info (equals static request) - then query and save the time series (euqals TS request)
   # define variables
-  staticReq      <- NULL     # this can be confusig. staticReq is an integer which goes up with each try to maxtries as long as the query failes. If query is successful the variable is a list
-  TSReq          <- NULL     # this can be confusig. TSReq is an integer which goes up with each try to maxtries as long as the query failes. If query is successful the variable is a list
+  staticReq      <- NULL     # this can be confusig. staticReq is an integer which goes up with each try to maxtries as long as the query failes. If query is successful the variable is a list (I think that has been updated)
+  TSReq          <- NULL     # this can be confusig. TSReq is an integer which goes up with each try to maxtries as long as the query failes. If query is successful the variable is a list (I think that has been updated)
   sleeptime      <- 3        # how long it will pause to make a new request if one failed
   maxtries       <- 3        # max. tries to query the info
   
   ## IF the ID is not an ISIN it could contain an compound sign (&), which causes trouble when passing over to the xml request in ds()
   # replace & with URL encoding character
   AssetID_staticRq <- gsub("&","&#38;", SETTINGS$securities[queryindices]) 
+  # (lazy) create an object of same length to use it later
   AssetID_TSRq     <- AssetID_staticRq
+  # this is just for Memory stats
   saveMemUse(1)
   ## Query the company information. Exit loop if request has data Try max. 10 times
   it <- 1
@@ -43,7 +45,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     
     # log error 
     for(asset in AssetID_staticRq){
-      saveError(2, # Error Code 2: Stores all AssetIDs that couldn't queried in static request (Connection or Account problems finally jumped to the next asset)
+      saveError(2, # Error Code 2: Stores all AssetIDs that couldn't queried in static request (Connection or Account problems finally jumped to the next asset block)
                 ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
                 AssetID.arg = asset,
                 input$IdentifierList$name) 
@@ -53,8 +55,13 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   }
   ## End of query
   saveMemUse(2)
-  ## if the static query returned anything, save it as an error if it has no ISIN or save the asset info 
+  
+  # Match the Symbols to ISINS
+  # Prepare statistics and error logging for this block (could maybe done somewhere else)
+  ## if the static query returned something, save it as an error if it has no ISIN or save the asset info 
   # firstcheck weather it has an ISIN in it if not return error 
+  
+  # create list to save the objects in the correct format
   AssetObjects <- list()
   for(i in 1:length(staticReq["Data",])){
     
@@ -78,7 +85,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
                               AssetID2    = as.character( staticReq[["Data",i]]$SYMBOL ), # can be removed. Just for debuggin purpose
                               DSCode      = as.character( staticReq[["Data",i]]$DSCD ),
                               CName       = as.character( staticReq[["Data",i]]$NAME ),
-                              CountryCode = substr(staticReq[["Data",i]]$ISIN,1,2), # get the first two ISIN char
+                              CountryCode = substr(staticReq[["Data",i]]$ISIN,1,2), # get the first two ISIN char (might be different from the country output)
                               Currency    = staticReq[["Data",i]]$CCY,
                               Sector      = as.character( staticReq[["Data",i]]$INDM ),
                               Exchange    = staticReq[["Data",i]]$EXMNEM,
@@ -88,11 +95,13 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   }
   ## end defining an AssetObject from static query
   saveMemUse(3)
+  
+  
   ## Prepare TS request
   qreq <- vector()
   
   # check for duplicates and skip them
-  #first save the old order (In which AssetObjects are arranged)
+  # first save the old order (In which AssetObjects are arranged)
   AssetID_TSRq.old <- AssetID_TSRq
   duplicates   <-  which(duplicated(AssetID_TSRq))
   # save the duplicates in the error log
@@ -129,7 +138,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       qreq[i] <- paste(AssetID_TSRq[i],"~","=",SETTINGS$fields,"~",fromDate,"~",":",SETTINGS$toDate,"~",SETTINGS$periodicity,sep="")
     } # end for
     saveMemUse(4)
-    ## Query the TS information. Exit loop if request has data Try max. 10 times
+    ## Query the TS information. Exit loop if request has data Try maxtries times
     it <- 1
     while(!is.list(TSReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
       # Try to make the query and save 
