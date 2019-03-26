@@ -1,9 +1,4 @@
-
-# This is the server logic for a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
+options(shiny.maxRequestSize=30*1024^2) 
 
 library(shiny)
 library(openssl)
@@ -14,7 +9,6 @@ source("saveError.R")
 source("saveAssets.R")
 source("getAssetObjectInfo.R")
 source("saveMemUse.R")
-source("createSessionID.R")
 
 shinyServer(function(input, output) {
   
@@ -55,9 +49,12 @@ shinyServer(function(input, output) {
       # default "Datastream", useful if you want to access another Dataworks Enterprise data source. You can obtain the list of sources you have access to by using the dsSources() function in this package.
       # SETTINGS$source      <- "Datastream"
       # Blocksize determines how many assets will be request at one
-      SETTINGS$blocksize <- input$blocksize
+      SETTINGS$blocksize   <- input$blocksize
       
-      errorLogPath <- input$errorlog$datapath
+      # if query is resumed the datapath to the according error log (optional)
+      errorLogPath         <- input$errorlog$datapath
+      # generate an ID based on the CSV File used
+      SETTINGS$SessionID   <- md5(input$IdentifierList$name)
       
       # Loops over each ID. Can also be one
       # lapply wäre schneller aber die Request können nicht parallelisiert werden. Außerdem ist der Flaschenhals die response time vom server
@@ -68,9 +65,11 @@ shinyServer(function(input, output) {
       if(input$resumeQuery){
         ## delete already queried assets and duplicates
         # check error log to ignore the duplicates
-        if(file.exists(errorLogPath)){
-          errorLog <- read.csv(errorLogPath, header=T, sep = ",", stringsAsFactors = F)
-          SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
+        if(!is.null(errorLogPath)){
+          if(file.exists(errorLogPath)){
+            errorLog <- read.csv(errorLogPath, header=T, sep = ",", stringsAsFactors = F)
+            SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
+          }
         }
         # read in all existing assets
         f <- list.files(path = "Assets",pattern=".rds", full.names = T)
@@ -100,38 +99,64 @@ shinyServer(function(input, output) {
     }
     
   })
-
   
-  # Stage 1 - output list with assets that could not been queried at all
-  observeEvent(input$clean_CSV_btn,{
+  
+  # Stage 2 - kill all assets that have no ISIN, NO TS data, less than x datappoints
+  # Last Stage - Save assets with clean data.frame names and delete obsolete data
+  observeEvent(input$Clean_btn,{
+    CleanedAssetObjects <- AssetObjects[AssetOverview$HasData  & !is.na(AssetOverview$TheISIN)]
+    # kurz checken ob die auch die Datenfelder haben und mehr als 1000
+    # check if more than 1000 datapoints are  there
+    checkDatapoints <- function(x){
+      if(dim(x$TSData)[2]>=5){
+        if(is.null(x$TSData$INSTERROR)){
+          if(dim(x$TSData[,SETTINGS$fields])[1] > 300){
+            if(length(which(!is.na(x$TSData$P_x0023_S))) > 300){
+              return(T)
+            }else{
+              return(F)
+            }
+            return(T)
+          }else{
+            return(F)
+          }
+        }else{
+          return(F)
+        }
+      }else{
+        return(F)
+      }
+    }
+    temp <- lapply(CleanedAssetObjects,checkDatapoints) 
+    temp <- unlist(temp)
+    CleanedAssetObjects <- CleanedAssetObjects[temp]
+    # rename and save
+    CleanedAssetObjects <- lapply(CleanedAssetObjects, function(x){
+      x$TSData <- x$TSData[SETTINGS$fields]
+      names(x$TSData)[names(x$TSData)=="P_x0023_S"] <- "price"
+      names(x$TSData)[names(x$TSData)=="DATE"]      <- "dates"
+      names(x$TSData)[names(x$TSData)=="VO"]        <- "vol"
+      names(x)[names(x)=="TSData"]        <- "data"
+      return(x)
+    })
+    
+    lapply(CleanedAssetObjects, saveCleanAssets)
   })
   
-  # Stage 2 - kill all assets that have no TS data
-  observeEvent(input$clean_NoTSData_btn,{
-    # all object 
-  })
-  observeEvent(input$clean_NoTSData_btn,{ 
-    # Stage 3 - kill all assets that have not more than x datapoints
-    
-    # Stage 4 - 
-    
-    # Last Stage - Save assets with clean data.frame names and delete obsolete data
-    
-  })
-
   observeEvent(input$stat_btn,{
     # output variables
     # From
-    AllAssets <- 0
-    noEntry <- 0
-    NoData <- 0
-    NoISIN <- 0
-    NoDataNoISIN <- 0
-    DataNoISIN <- 0
-    hasPrice <- F
-    hasVolume <- F
-    SETTINGS <- list()
-    SETTINGS$fields <- strsplit(gsub("#","_x0023_",gsub("\\s", "", input$fields)), ",")[[1]]
+    AllAssets       <- 0
+    noEntry         <- 0
+    NoData          <- 0
+    NoISIN          <- 0
+    NoDataNoISIN    <- 0
+    DataNoISIN      <- 0
+    hasPrice        <- F
+    hasVolume       <- F
+    SETTINGS        <- list()
+    SETTINGS$fields <- strsplit(gsub("#","_x0023_",gsub("\\s", "", toupper(input$fields))), ",")[[1]]
+    SETTINGS$SessionID <- md5(input$IdentifierList$name)
     
     # Loads the .csv sheet to get the IDs to query
     CSVFile <- tryCatch({
@@ -156,7 +181,7 @@ shinyServer(function(input, output) {
     f <- list.files(path = "Assets",pattern=".rds", full.names = T)
     # read in prvious files
     AssetObjects  <- lapply(f, readRDS)
-    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo,SETTINGS$fields)
+    AssetOverview <- lapply(AssetObjects, getAssetObjectInfo, SETTINGS$fields)
     
     # quick check if there is any object that has data in any way but no DSCD - I assume it it not possible because the DSCD is at least given if there is any data
     #fuckingerror <- lapply(AssetObjects, function(x){
@@ -164,7 +189,7 @@ shinyServer(function(input, output) {
     #  ifelse((temp[1] > 2 | temp[3] > 2 | temp[4] > 2 | temp[5] > 2 | temp[6] > 2 | temp[7] > 2 | temp[8] > 2 | temp[9] > 2 | temp[10] > 2),T,F)
     #})
     
-    AssetOverview <- do.call(rbind, lapply(AssetOverview, data.frame, stringsAsFactors=FALSE))
+    AssetOverview           <- do.call(rbind, lapply(AssetOverview, data.frame, stringsAsFactors=FALSE))
     AssetOverview$TheSymbol <- as.character( AssetOverview$TheSymbol) 
     
     # I did not create an object for these symbols (maybe try to get data somewehere else)
@@ -194,8 +219,9 @@ shinyServer(function(input, output) {
     
     
     # if file is uploaded check how many assets should be queried
-    if(file.exists("log/error_log.csv")){
-      errorLog <- read.csv("log/error_log.csv", header=T, sep = ",", stringsAsFactors = F)
+    temp <- paste("log/","error_log_",SETTINGS$SessionID,".csv",sep="")
+    if(file.exists(temp)){
+      errorLog <- read.csv(temp, header=T, sep = ",", stringsAsFactors = F)
       
       # save how man assets didn't have an ISIN
       NoISIN <- errorLog$AssetID[which(errorLog$Error_ID == 3)]
@@ -207,8 +233,8 @@ shinyServer(function(input, output) {
     
     # should be 0: length(which(AssetOverview$TheSymbol %in% noEntry))
     
-    # If done offer the filte to download
-
+    # If done offer the file to download
+    
     output$downloadAssetObjects_Btn <- downloadHandler(
       filename = function() {
         paste("updated_",input$IdentifierList$name, sep = "")
@@ -226,16 +252,21 @@ shinyServer(function(input, output) {
     output$noDataAvailable <- renderUI({
       list(
         p(paste("The CSV File has",length(CSVFile$Symbol),"Symbols.")),
-        p(paste("Because of connection problems while querying the static data I missed",length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),"assets.")),
-        p(paste("Because of connection problems while querying the TS data I missed",length(errorLog$AssetID[which(errorLog$Error_ID == 5)]),"assets.")),
-        p(paste("There where",length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),"duplicates (ISIN) in the CSV File.")),
-        p(paste("I got",length(AssetOverview$TheSymbol),"asset objects.")),
+        p(paste("I got",length(AssetOverview$TheSymbol),"assets.")),
+        p(paste("There where",length(errorLog$TimeStamp[which(errorLog$Error_ID == 7)]),"duplicates (ISIN) in the CSV File.")),
+        
+        # No Object for these
+        p(paste("I could not get any data for:",length(noEntry))),
+        p(paste("I have an error log entry for:",length(errorAssetIDs),"assets. Should match all entries (",dim(errorLog),")")),
+        p(paste("Because of connection problems while querying the static data I missed",length(errorLog$TimeStamp[which(errorLog$Error_ID == 2)]),"assets.")),
+        p(paste("Because of connection problems while querying the TS data I missed",length(errorLog$TimeStamp[which(errorLog$Error_ID == 5)]),"assets.")),
+        p(paste("I could not match any ISIN for",length(errorLog$TimeStamp[which(errorLog$Error_ID == 3)]),"assets.")),
+        
         p(paste("The total number of Symbols from the csv file (",length(CSVFile$Symbol),") should match the sum of the duplicates, missed objects and the objects I have (",sum(length(unique(errorLog$ISIN[which(errorLog$Error_ID == 7)])),
                                                                                                                                                                                  length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),
                                                                                                                                                                                  length(errorLog$AssetID[which(errorLog$Error_ID == 5)]),
                                                                                                                                                                                  length(AssetOverview$TheSymbol)),").")),
-        # No Object for these
-        p(paste("I could not get any data for:",length(noEntry))),
+        
         # just ISIN no data
         p(paste("I found no TS data but an ISIN for so many assets:", length(which(AssetOverview$HasData == F & !is.na(AssetOverview$TheISIN))))),
         # No data for these 
@@ -249,10 +280,11 @@ shinyServer(function(input, output) {
         # check which assets have volume
         p(paste("I got volume data for that many assets:", length(which(AssetOverview$HasVO == T)))),
         # check which assets have price
-        p(paste("I got volume data for that many assets:", length(which(AssetOverview$P_0023x_S == T)))),
+        p(paste("I got Price data for that many assets:", length(which(AssetOverview$HasP_0023x_S == T)))),
         
         
-        downloadButton('downloadAssetObjects_Btn', 'Download')
+        downloadButton('downloadAssetObjects_Btn', 'Download'),
+        actionButton("Clean_btn","Clean Data") 
       )
     })
     

@@ -10,7 +10,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   # replace & with URL encoding character
   AssetID_staticRq <- gsub("&","&#38;", SETTINGS$securities[queryindices]) 
   AssetID_TSRq     <- AssetID_staticRq
-  saveMemUse(1)
+  saveMemUse(1, SETTINGS$SessionID)
   ## Query the company information. Exit loop if request has data Try max. 10 times
   it <- 1
   while(!is.list(staticReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
@@ -22,9 +22,9 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     error=function(e){
       # log error 
       saveError(1, # Error Code 1 : Connection or Account problems
-                ownError.msg = paste("I tried", it, "time(s) to query the static data."),
+                ownError.msg        = paste("I tried", it, "time(s) to query the static data."),
                 thridPartyError.msg = e,
-                input$IdentifierList$name) 
+                CSVFileName.arg     = SETTINGS$SessionID) 
       Sys.sleep(sleeptime)
       NULL # set staticReq to NULL
     },
@@ -44,15 +44,15 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     # log error 
     for(asset in AssetID_staticRq){
       saveError(2, # Error Code 2: Stores all AssetIDs that couldn't queried in static request (Connection or Account problems finally jumped to the next asset)
-                ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
-                AssetID.arg = asset,
-                input$IdentifierList$name) 
+                ownError.msg    = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
+                AssetID.arg     = asset,
+                CSVFileName.arg = SETTINGS$SessionID) 
     }
     # end function and try next asset block
     return(F)
   }
   ## End of query
-  saveMemUse(2)
+  saveMemUse(2, SETTINGS$SessionID)
   ## if the static query returned anything, save it as an error if it has no ISIN or save the asset info 
   # firstcheck weather it has an ISIN in it if not return error 
   AssetObjects <- list()
@@ -64,9 +64,9 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       if(nchar(as.character(staticReq[["Data",i]]$ISIN)) != 12){ 
         # log error 
         saveError(3, # Error Code 3 : Could not match assetID and ISIN
-                  ownError.msg = paste("I could not match any ISIN to the identifier:", AssetID_staticRq[i]),
-                  AssetID.arg  = AssetID_staticRq[i],
-                  input$IdentifierList$name) 
+                  ownError.msg    = paste("I could not match any ISIN to the identifier:", AssetID_staticRq[i]),
+                  AssetID.arg     = AssetID_staticRq[i],
+                  CSVFileName.arg = SETTINGS$SessionID) 
       }else{
         # replace asset ID with ISIN if it could be matched. To query with ISIN instead of ID if possible
         AssetID_TSRq[i] <- as.character(staticReq[["Data",i]]$ISIN)
@@ -87,7 +87,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
                               )
   }
   ## end defining an AssetObject from static query
-  saveMemUse(3)
+  saveMemUse(3, SETTINGS$SessionID)
   ## Prepare TS request
   qreq <- vector()
   
@@ -98,10 +98,10 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   # save the duplicates in the error log
   for(dupli in duplicates){
     saveError(7, # Error Code 7 : Duplicated Asset
-              ownError.msg = paste("These Objects where duplicates and skipped"),
-              AssetID.arg  = AssetID_staticRq[dupli],
-              ISIN.arg     = AssetID_TSRq.old[dupli],
-              input$IdentifierList$name)
+              ownError.msg    = paste("These Objects where duplicates and skipped"),
+              AssetID.arg     = AssetID_staticRq[dupli],
+              ISIN.arg        = AssetID_TSRq.old[dupli],
+              CSVFileName.arg = SETTINGS$SessionID)
   }
   # delete them
   AssetID_TSRq <- AssetID_TSRq[setdiff(seq_along(AssetID_TSRq), as.numeric(duplicates))]
@@ -128,7 +128,7 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       # prepare query string
       qreq[i] <- paste(AssetID_TSRq[i],"~","=",SETTINGS$fields,"~",fromDate,"~",":",SETTINGS$toDate,"~",SETTINGS$periodicity,sep="")
     } # end for
-    saveMemUse(4)
+    saveMemUse(4, SETTINGS$SessionID)
     ## Query the TS information. Exit loop if request has data Try max. 10 times
     it <- 1
     while(!is.list(TSReq) && it < maxtries){ # as long as staticReq stays a integer and not a list the query didn't succeed.
@@ -141,9 +141,9 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
       error=function(e){
         # log error 
         saveError(4, # Error Code 4 : Connection or Account problems in TS request
-                  ownError.msg = paste("I tried", it, "time(s) to query the TS data."),
+                  ownError.msg        = paste("I tried", it, "time(s) to query the TS data."),
                   thridPartyError.msg = e,
-                  input$IdentifierList$name) 
+                  CSVFileName.arg     = SETTINGS$SessionID) 
         Sys.sleep(sleeptime)
         NULL # set staticReq to NULL
       },
@@ -160,9 +160,9 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
     if(it >= maxtries){
       for(asset in AssetID_TSRq){
         saveError(5, # Error Code 5 : Stores all AssetIDs that couldn't queried (Connection or Account problems (TS request) finally jumped to the next asset)
-                  ownError.msg = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
-                  AssetID.arg = asset,
-                  input$IdentifierList$name) 
+                  ownError.msg    = paste("Tried the TS request ", it ,"times. Maybe there is a problem with your account or connection."),
+                  AssetID.arg     = asset,
+                  CSVFileName.arg = SETTINGS$SessionID) 
       }
       # end function and try next asset block
       return(F)
@@ -176,6 +176,6 @@ makeAssetObject <- function(user, SETTINGS, CSVFile, queryindices){
   } # end if
   # save the Assets
   lapply(AssetObjects, saveAssets)
-  saveMemUse(5)
+  saveMemUse(5, SETTINGS$SessionID)
   return(T)
 }

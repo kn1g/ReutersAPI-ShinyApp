@@ -1,10 +1,10 @@
-saveMemUse <- function(point){
+saveMemUse <- function(point, CSVFileName){
   
   if(!dir.exists("log")){ 
     dir.create("log") 
   }
   
-  logFile = paste("log/","MemUse_",md5(input$IdentifierList$name),".csv",sep="")
+  logFile = paste("log/","MemUse_",CSVFileName,".csv",sep="")
   if(!file.exists(logFile)){
     cat(paste("TimeStamp",
               "MemUse",

@@ -1,4 +1,4 @@
-saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID.arg = NA, ISIN.arg = NA,  CSVFileName){
+saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID.arg = NA, ISIN.arg = NA,  CSVFileName.arg="abc"){
   AssetID <- AssetID.arg
   ISIN    <- ISIN.arg
   
@@ -6,7 +6,7 @@ saveError <- function(ERRORCODE, ownError.msg, thridPartyError.msg = "", AssetID
     dir.create("log") 
   }
     
-  logFile = paste("log/","error_log_",md5(CSVFileName),".csv",sep="")
+  logFile = paste("log/","error_log_",CSVFileName.arg,".csv",sep="")
   if(!file.exists(logFile)){
     cat(paste("TimeStamp",
               "Error_ID",
