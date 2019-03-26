@@ -1,7 +1,10 @@
 options(shiny.maxRequestSize=30*1024^2) 
 
+
+library(devtools)
 library(shiny)
 library(openssl)
+library(pryr)
 
 # source functions
 source("makeAssetObject.R")
@@ -55,6 +58,7 @@ shinyServer(function(input, output) {
       errorLogPath         <- input$errorlog$datapath
       # generate an ID based on the CSV File used
       SETTINGS$SessionID   <- md5(input$IdentifierList$name)
+
       
       # Loops over each ID. Can also be one
       # lapply wäre schneller aber die Request können nicht parallelisiert werden. Außerdem ist der Flaschenhals die response time vom server
@@ -65,11 +69,13 @@ shinyServer(function(input, output) {
       if(input$resumeQuery){
         ## delete already queried assets and duplicates
         # check error log to ignore the duplicates
+
         if(!is.null(errorLogPath)){
           if(file.exists(errorLogPath)){
             errorLog <- read.csv(errorLogPath, header=T, sep = ",", stringsAsFactors = F)
             SETTINGS$securities <-  SETTINGS$securities[!(as.character(SETTINGS$securities) %in% as.character(errorLog$AssetID[which(errorLog$Error_ID == 7)]))]
           }
+
         }
         # read in all existing assets
         f <- list.files(path = "Assets",pattern=".rds", full.names = T)
@@ -81,11 +87,28 @@ shinyServer(function(input, output) {
       }
       
       # Request the data
+      # get total numbers to track progress
       n <-length(SETTINGS$securities)
+      # Querieng with progress tracking
       withProgress(message = 'Requesting data...', value = (1/n), {
         # create sequence
         indices <- 1:n
-        queryindices <- split(indices, as.numeric(gl(length(indices),SETTINGS$blocksize,length(indices))))
+        # split the query in blocks if blocks where defined and save it in queryindices as lists like this (last block could be larger or smaller):
+        # $`1`
+        # [1]   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59  60  61  62  63
+        # [64]  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80  81  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99 100
+        # 
+        # $`2`
+        # [1] 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163
+        # [64] 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 
+        queryindices <- split(indices, 
+                              as.numeric(
+                                gl(
+                                  length(indices),
+                                  SETTINGS$blocksize,
+                                  length(indices)))
+                              )
+        # iterate over the lists (number of list should be around indieces/blocksize)
         for(i in 1:length(queryindices)){
           # query the assets
           makeAssetObject(user, SETTINGS, CSVFile, queryindices[[i]])
@@ -99,7 +122,6 @@ shinyServer(function(input, output) {
     }
     
   })
-  
   
   # Stage 2 - kill all assets that have no ISIN, NO TS data, less than x datappoints
   # Last Stage - Save assets with clean data.frame names and delete obsolete data
@@ -164,11 +186,11 @@ shinyServer(function(input, output) {
       read.csv(inFile$datapath, header=T, sep = ";")
     }, warning = function(w) {
       print(w)
-      print("Warning: Something went wrong with the CSV File Uplaod")
+      print("Warning: (Stats) Something went wrong with the CSV File Uplaod")
       NULL
     }, error = function(e) {
       print(e)
-      print("Error: Something went wrong with the CSV File Uplaod")
+      print("Error: (Stats) Something went wrong with the CSV File Uplaod")
       NULL
     })
     if(!is.null(inFile)  && !is.null(CSVFile$Symbol) ){
@@ -251,6 +273,7 @@ shinyServer(function(input, output) {
     
     output$noDataAvailable <- renderUI({
       list(
+        # Statements from logs
         p(paste("The CSV File has",length(CSVFile$Symbol),"Symbols.")),
         p(paste("I got",length(AssetOverview$TheSymbol),"assets.")),
         p(paste("There where",length(errorLog$TimeStamp[which(errorLog$Error_ID == 7)]),"duplicates (ISIN) in the CSV File.")),
@@ -266,7 +289,10 @@ shinyServer(function(input, output) {
                                                                                                                                                                                  length(errorLog$AssetID[which(errorLog$Error_ID == 2)]),
                                                                                                                                                                                  length(errorLog$AssetID[which(errorLog$Error_ID == 5)]),
                                                                                                                                                                                  length(AssetOverview$TheSymbol)),").")),
-        
+
+        # Did not create an object for these many (matching symbol name)
+        p(paste("I could not get any data for:",length(noEntry))),
+
         # just ISIN no data
         p(paste("I found no TS data but an ISIN for so many assets:", length(which(AssetOverview$HasData == F & !is.na(AssetOverview$TheISIN))))),
         # No data for these 
